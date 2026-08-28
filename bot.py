@@ -276,7 +276,7 @@ if position == 0 and buy_signal and cooldown_ok:
     risk_loss = capital * RISK_LOSS
     position = (risk_loss / stop_distance) * LEVERAGE
     entry = price
-    send_telegram(f"🥇 شراء ذهب (2%/1%)\nالسعر: {price:.2f}$\nالوقف: {sl:.2f}$ (-{risk_loss*EXCHANGE_RATE:.0f} ﷼)\nالهدف: {tp:.2f}$ (+{risk_loss*RISK_REWARD*EXCHANGE_RATE:.0f} ﷼)\nتأكيد: 5m✅ 15m✅ 1h✅ | Prob: {prob:.2f}\nالرصيد: {capital:.2f}$")
+    send_telegram(f"🥇 شراء ذهب (2%/1%)\nالسعر: {price:.2f}$\nالوقف: {sl:.2f}$ (-{risk_loss:.2f}$)\nالهدف: {tp:.2f}$ (+{risk_loss*RISK_REWARD:.2f}$)\nتأكيد: 5m✅ 15m✅ 1h✅ | Prob: {prob:.2f}\nالرصيد: {capital:.2f}$")
 
 # ---------- فتح صفقة بيع (Short) ----------
 elif position == 0 and sell_signal and cooldown_ok:
@@ -288,7 +288,7 @@ elif position == 0 and sell_signal and cooldown_ok:
     risk_loss = capital * RISK_LOSS
     position = -((risk_loss / stop_distance) * LEVERAGE)
     entry = price
-    send_telegram(f"🥇 بيع ذهب Short (2%/1%)\nالسعر: {price:.2f}$\nالوقف: {sl:.2f}$ (-{risk_loss*EXCHANGE_RATE:.0f} ﷼)\nالهدف: {tp:.2f}$ (+{risk_loss*RISK_REWARD*EXCHANGE_RATE:.0f} ﷼)\nتأكيد: 5m✅ 15m✅ 1h✅\nالرصيد: {capital:.2f}$")
+    send_telegram(f"🥇 بيع ذهب Short (2%/1%)\nالسعر: {price:.2f}$\nالوقف: {sl:.2f}$ (-{risk_loss:.2f}$)\nالهدف: {tp:.2f}$ (+{risk_loss*RISK_REWARD:.2f}$)\nتأكيد: 5m✅ 15m✅ 1h✅\nالرصيد: {capital:.2f}$")
 
 # ---------- إغلاق شراء ----------
 elif position > 0 and (price <= sl or price >= tp or sell_signal):
@@ -298,7 +298,7 @@ elif position > 0 and (price <= sl or price >= tp or sell_signal):
     if pnl < -max_loss: pnl = -max_loss
     capital += pnl
     if pnl < 0: last_loss_ts = now_ts
-    send_telegram(f"🥇 إغلاق شراء ({reason})\nPnL: {pnl:+.2f}$ ({pnl*EXCHANGE_RATE:+.0f} ﷼)\nالرصيد: {capital:.2f}$")
+    send_telegram(f"🥇 إغلاق شراء ({reason})\nPnL: {pnl:+.2f}$\nالرصيد: {capital:.2f}$")
     position = 0
 
 # ---------- إغلاق بيع ----------
@@ -309,7 +309,7 @@ elif position < 0 and (price >= sl or price <= tp or buy_signal):
     if pnl < -max_loss: pnl = -max_loss
     capital += pnl
     if pnl < 0: last_loss_ts = now_ts
-    send_telegram(f"🥇 إغلاق Short ({reason})\nPnL: {pnl:+.2f}$ ({pnl*EXCHANGE_RATE:+.0f} ﷼)\nالرصيد: {capital:.2f}$")
+    send_telegram(f"🥇 إغلاق Short ({reason})\nPnL: {pnl:+.2f}$\nالرصيد: {capital:.2f}$")
     position = 0
 
 with open(STATE_FILE, 'w') as f:
