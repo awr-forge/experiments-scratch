@@ -1,89 +1,177 @@
-import urllib.request
+import os
 import json
 import datetime
+import urllib.request
+import urllib.error
 
-TOKEN = "8674718185:AAHFbjFh-6Y3NxtzTA6j8JOpKxEgZ2q3Yw1s"
+TOKEN = os.environ.get("TELEGRAM_TOKEN", "").strip()
+API = f"https://api.telegram.org/bot{TOKEN}"
 
-def get_updates():
-    url = f"https://api.telegram.org/bot{TOKEN}/getUpdates?allowed_updates=[\"message\"]"
+OFFSET_FILE = "offset.txt"
+TIMEOUT = 15
+
+
+def load_offset() -> int:
     try:
-        req = urllib.request.Request(url)
-        with urllib.request.urlopen(req, timeout=15) as response:
-            data = json.loads(response.read().decode())
+        with open(OFFSET_FILE, "r", encoding="utf-8") as f:
+            return int(f.read().strip() or "0")
+    except (FileNotFoundError, ValueError):
+        return 0
+
+
+def save_offset(n: int) -> None:
+    try:
+        with open(OFFSET_FILE, "w", encoding="utf-8") as f:
+            f.write(str(n))
+    except OSError as e:
+        print(f"تعذر حفظ الـ offset: {e}")
+
+
+def get_updates(offset: int) -> list:
+    url = (
+        f"{API}/getUpdates"
+        f"?offset={offset}"
+        f"&timeout=10"
+        f"&allowed_updates=%5B%22message%22%5D"
+    )
+    try:
+        req = urllib.request.Request(url, method="GET")
+        with urllib.request.urlopen(req, timeout=TIMEOUT) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
             if data.get("ok"):
                 return data.get("result", [])
+            print(f"استجابة غير ناجحة: {data}")
+    except urllib.error.HTTPError as e:
+        print(f"HTTP {e.code}: {e.reason}")
     except Exception as e:
         print(f"خطأ في جلب التحديثات: {e}")
     return []
 
-def send_message(chat_id, text):
-    send_url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
+
+def send_message(chat_id: int, text: str, parse_mode: str = "MarkdownV2") -> bool:
     payload = json.dumps({
         "chat_id": chat_id,
         "text": text,
-        "parse_mode": "Markdown"
+        "parse_mode": parse_mode,
+        "disable_web_page_preview": True,
     }).encode("utf-8")
+    req = urllib.request.Request(
+        f"{API}/sendMessage",
+        data=payload,
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
     try:
-        req = urllib.request.Request(send_url, data=payload, headers={'Content-Type': 'application/json'})
-        urllib.request.urlopen(req, timeout=15)
-        print(f"تم إرسال الرد بنجاح إلى Chat ID: {chat_id}")
+        with urllib.request.urlopen(req, timeout=TIMEOUT) as resp:
+            resp.read()
+        print(f"تم الإرسال إلى {chat_id}")
+        return True
+    except urllib.error.HTTPError as e:
+        body = ""
+        try:
+            body = e.read().decode("utf-8", errors="replace")
+        except Exception:
+            pass
+        print(f"فشل الإرسال HTTP {e.code}: {body}")
     except Exception as e:
-        print(f"خطأ في إرسال الرسالة: {e}")
+        print(f"فشل الإرسال: {e}")
+    return False
 
-def advanced_response(text):
-    text_lower = text.lower().strip()
 
-    if "/start" in text_lower or "مرحبا" in text_lower or "هلا" in text_lower:
+_MD_SPECIAL = set(r"_*[]()~`>#+-=|{}.!")
+
+
+def esc(s: str) -> str:
+    return "".join("\\" + ch if ch in _MD_SPECIAL else ch for ch in s)
+
+
+def advanced_response(text: str) -> str:
+    raw = text or ""
+    t = raw.strip()
+    if not t:
+        return esc("أرسل رسالة نصية من فضلك.")
+
+    low = t.lower()
+
+    if any(k in low for k in ("/start", "مرحبا", "هلا", "السلام")):
         return (
-            "أهلاً بك يا نورالدين.\n\n"
-            "أنا نظامك الذكي المستقل والمصمم للعمل بالكامل عبر خوادم غيت هب السحابية بدون قيود أو اشتراكات.\n"
-            "جاهز لتحليل أفكارك، إدارة مهامك، وتقديم استجابات دقيقة.\n\n"
-            "بماذا نبدأ اليوم؟"
+            "*أهلاً بك يا نورالدين\\.*\n\n"
+            "أنا نظامك الذكي المستقل، أعمل بالكامل عبر خوادم غيت هب السحابية "
+            "بدون قيود أو اشتراكات\\.\n"
+            "جاهز لتحليل أفكارك، إدارة مهامك، وتقديم استجابات دقيقة\\.\n\n"
+            "*بماذا نبدأ اليوم؟*"
         )
-    elif "تحليل" in text_lower or "نظام" in text_lower:
+
+    if any(k in low for k in ("تحليل", "نظام")):
         return (
-            "📊 **تقرير التحليل الاستراتيجي الفوري:**\n\n"
-            "• **البنية التحتية:** تعمل بنجاح تامة عبر خوادم غيت هب السحابية المستقلة.\n"
-            "• **الأمان والتحكم:** ملكية كاملة للبيانات بدون أي قيود أو وسطاء.\n"
-            "• **جاهزية التنفيذ:** المنظومة مستعدة لاستقبال وتدفق الأوامر البرمجية بدقة عالية."
+            "*📊 تقرير التحليل الاستراتيجي الفوري:*\n\n"
+            "• *البنية التحتية:* تعمل بنجاح تام عبر خوادم غيت هب السحابية المستقلة\\.\n"
+            "• *الأمان والتحكم:* ملكية كاملة للبيانات بدون أي قيود أو وسطاء\\.\n"
+            "• *جاهزية التنفيذ:* المنظومة مستعدة لاستقبال وتدفق الأوامر البرمجية بدقة عالية\\."
         )
-    elif "الوقت" in text_lower or "التاريخ" in text_lower:
+
+    if any(k in low for k in ("الوقت", "التاريخ", "ساعة")):
         now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        return f"⏱ **ختم الوقت للنظام:**\n`{now}`"
-    else:
+        return f"*⏱ ختم الوقت للنظام:*\n`{esc(now)}`"
+
+    if any(k in low for k in ("مساعد", "اوامر", "أوامر", "help", "/help")):
         return (
-            f"🧠 **التحليل العميق للمدخل:**\n"
-            f"لقد استقبلت رسالتك بتركيز: *[{text}]*\n\n"
-            "النظام يعمل بكفاءة تامة لمعالجة الطلب وتقديم النتائج المطلوبة بدقة وحرية كاملة."
+            "*📖 الأوامر المتاحة:*\n\n"
+            "• `/start` — الترحيب\\.\n"
+            "• `تحليل` — تقرير استراتيجي\\.\n"
+            "• `الوقت` — الوقت والتاريخ\\.\n"
+            "• أي نص آخر — تحليل عميق تلقائي\\."
         )
 
-def main():
-    print("بدء فحص الرسائل الجديدة عبر غيت هب...")
-    updates = get_updates()
+    safe = esc(t)
+    return (
+        "*🧠 التحليل العميق للمدخل:*\n"
+        f"استقبلت رسالتك: _{safe}_\n\n"
+        "النظام يعمل بكفاءة تامة لمعالجة الطلب وتقديم النتائج المطلوبة بدقة وحرية كاملة\\."
+    )
+
+
+def main() -> None:
+    if not TOKEN:
+        raise SystemExit("TELEGRAM_TOKEN غير مضبوط في البيئة.")
+    if ":" not in TOKEN:
+        raise SystemExit("TELEGRAM_TOKEN يبدو غير صالح.")
+
+    last_offset = load_offset()
+    print(f"بدء الفحص من offset={last_offset}")
+
+    updates = get_updates(last_offset)
     if not updates:
-        print("لا توجد رسائل جديدة في الانتظار.")
+        print("لا توجد رسائل جديدة.")
         return
 
+    highest = last_offset
+    handled = 0
+
     for update in updates:
-        update_id = update["update_id"]
-        if "message" in update:
-            msg = update["message"]
-            chat_id = msg["chat"]["id"]
-            text = msg.get("text", "")
+        uid = update.get("update_id")
+        if uid is not None:
+            highest = max(highest, uid + 1)
 
-            user_data = msg.get("from", {})
-            user_name = user_data.get("first_name", "صديقي")
+        msg = update.get("message")
+        if not msg:
+            continue
 
-            if text:
-                print(f"معالجة الطلب من {user_name}: {text}")
-                reply_text = advanced_response(text)
-                send_message(chat_id, reply_text)
-                
-            # تأكيد استلام الرسالة عبر الـ offset لكي لا تتكرر في المرة القادمة
-            try:
-                urllib.request.urlopen(f"https://api.telegram.org/bot{TOKEN}/getUpdates?offset={update_id + 1}", timeout=10)
-            except:
-                pass
+        chat_id = msg.get("chat", {}).get("id")
+        text = msg.get("text", "")
+        user_name = msg.get("from", {}).get("first_name", "صديقي")
+
+        if chat_id is None or not text:
+            continue
+
+        print(f"→ {user_name} ({chat_id}): {text[:60]}")
+        reply = advanced_response(text)
+        if send_message(chat_id, reply):
+            handled += 1
+
+    save_offset(highest)
+    print(f"انتهى الفحص — تم الرد على {handled} من {len(updates)} تحديث.")
+
 
 if __name__ == "__main__":
     main()
