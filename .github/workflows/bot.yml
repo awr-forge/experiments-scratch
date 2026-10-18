@@ -1,21 +1,24 @@
-name: Run Telegram Bot
+name: Run N-Panther Bot
 
 on:
-  schedule:
-    - cron: '*/5 * * * *'
+  push:
+    branches: [ main ]
   workflow_dispatch:
+  schedule:
+    - cron: '*/30 * * * *'
 
 jobs:
-  build:
+  run-bot:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
+      - name: Checkout Repository
+        uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.10'
 
-      - name: Run bot script
-        run: python main.py
+      - name: Run Bot Script
+        timeout-minutes: 25
+        run: python3 main.py
