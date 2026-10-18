@@ -2,7 +2,7 @@ import urllib.request
 import json
 import datetime
 
-TOKEN = "8804023843:AAGSA08aG-UhZEi-zZboYro1Y6QmaFz5HmY"
+TOKEN = "8674718185:AAHFbjFh-6Y3NxtzTA6j8JOpKxEg..."
 
 def get_updates():
     url = f"https://api.telegram.org/bot{TOKEN}/getUpdates"
@@ -51,32 +51,3 @@ def advanced_response(text):
         return f"⏱ **ختم الوقت للنظام:**\n`{now}`"
     else:
         return (
-            f"🧠 **التحليل العميق للمدخل:**\n"
-            f"لقد استقبلت رسالتك بتركيز: *[{text}]*\n\n"
-            "النظام يعمل بكفاءة تامة لمعالجة الطلب وتقديم النتائج المطلوبة بدقة وحرية كاملة."
-        )
-
-def main():
-    updates = get_updates()
-    if not updates:
-        print("لا توجد رسائل جديدة.")
-        return
-
-    latest_update = updates[-1]
-    if "message" in latest_update:
-        msg = latest_update["message"]
-        chat_id = msg["chat"]["id"]
-        text = msg.get("text", "")
-
-        user_data = msg.get("from", {})
-        user_name = user_data.get("first_name", "صديقي")
-
-        if text:
-            print(f"معالجة الطلب من {user_name}: {text}")
-            reply_text = advanced_response(text)
-            send_message(chat_id, reply_text)
-
-    print("انتهت المعالجة بنجاح.")
-
-if __name__ == "__main__":
-    main()
