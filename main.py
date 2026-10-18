@@ -151,7 +151,7 @@ def ask_ai(chat_id: int, user_text: str) -> str:
 
     search_triggers = ("سعر", "خبر", "أخبار", "مباراة", "نتيجة", "الطقس", "اليوم", "أمس", "حاليا", "الآن", "2025", "2026", "من هو", "ما هو آخر", "حدث", "جديد", "تحديث")
     search_context = ""
-    if TAVILY_KEY and any(t in user_text for t in search_triggers):
+    if False and TAVILY_KEY and any(t in user_text for t in search_triggers):
         print(f"🔍 بحث ويب: {user_text[:50]}")
         search_context = web_search(user_text)
 
