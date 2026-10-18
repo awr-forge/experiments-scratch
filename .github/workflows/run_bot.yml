@@ -1,28 +1,26 @@
-name: Run Telegram Bot
+name: تشغيل بوت تيليجرام
 
 on:
-  push:
-    branches: [ main ]
+  schedule:
+    - cron: '*/5 * * * *'
   workflow_dispatch:
 
 jobs:
-  build:
+  run_bot:
     runs-on: ubuntu-latest
-
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v3
+      - name: Checkout Repository
+        uses: actions/checkout@v4
 
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.10'
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
 
-    - name: Install dependencies
-      run: |
-        pip install --upgrade pip
-        pip install -r requirements.txt
+      - name: Install Dependencies
+        run: |
+          pip install pyTelegramBotAPI
 
-    - name: Run bot
-      run: |
-        python bot.py
+      - name: Run Bot
+        run: |
+          python main.py
