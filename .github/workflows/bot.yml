@@ -32,14 +32,18 @@ jobs:
       - name: Run Bot Script
         env:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
         run: python3 main.py
 
-      - name: Persist offset to git
+      - name: Persist state to git
         if: always()
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          touch offset.txt
           git add offset.txt
-          git diff --cached --quiet || git commit -m "chore: update offset [skip ci]"
+          [ -f history.json ] && git add history.json || true
+          git diff --cached --quiet || git commit -m "chore: update bot state [skip ci]"
           git pull --rebase origin main || true
           git push
