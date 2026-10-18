@@ -31,9 +31,8 @@ def send_message(chat_id, text):
 def advanced_response(text):
     text_lower = text.lower().strip()
     
-    # القالب الذكي المتقدم للردود والتحليل
     if text_lower in ["/start", "بدء", "مرحبا"]:
-        return "اهلاً بك يا نورالدين. تم تفعيل قالب المساعد الذكي المتقدم بنجاح وبدون أي قيود. أرسل لي أي استفسار أو أمر لأقوم بتحليله والرد عليه فوراً."
+        return "أهلاً بك يا نورالدين. تم إصلاح المشكلة وتحديث المساعد الذكي المتقدم بنجاح وبدون أي قيود. أرسل لي أي استفسار أو أمر لأقوم بتحليله والرد عليه فوراً."
     elif "تحليل" in text_lower or "فكرة" in text_lower:
         return "منظومة التحليل جاهزة. بناءً على المدخلات الخاصة بك، أنصح دائماً بترتيب الأولويات، دراسة الجدوى بدقة، وتطبيق الأتمتة البرمجية لتوفير الوقت والجهد."
     elif "الوقت" in text_lower or "التاريخ" in text_lower:
@@ -50,13 +49,20 @@ def main():
         print("لا توجد رسائل جديدة في هذه الدورة.")
         return
 
-    print(f"تم رصد {len(updates)} رسالة جديدة.")
+    print(f"تم رصد {len(updates)} تحديث جديد.")
     for update in updates:
         if "message" in update:
-            chat_id = update["message"]["chat"]["id"]
-            text = update["message"].get("text", "")
-            user_name = update["message"]["from_user"].get("first_name", "صديقي")
+            msg = update["message"]
+            chat_id = msg["chat"]["id"]
+            text = msg.get("text", "")
             
+            # قراءة آمنة لاسم المستخدم لتجنب أي أخطاء
+            user_data = msg.get("from", {})
+            user_name = user_data.get("first_name", "صديقي")
+            
+            if not text:
+                continue
+                
             print(f"معالجة رسالة من {user_name}: {text}")
             
             reply_text = advanced_response(text)
