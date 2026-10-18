@@ -27,6 +27,21 @@ def save_offset(n: int) -> None:
         print(f"تعذر حفظ الـ offset: {e}")
 
 
+def bootstrap_offset() -> int:
+    url = f"{API}/getUpdates?offset=-1&limit=1&allowed_updates=%5B%22message%22%5D"
+    try:
+        req = urllib.request.Request(url, method="GET")
+        with urllib.request.urlopen(req, timeout=TIMEOUT) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+            if data.get("ok"):
+                results = data.get("result", [])
+                if results:
+                    return results[-1]["update_id"] + 1
+    except Exception as e:
+        print(f"تعذر bootstrap: {e}")
+    return 0
+
+
 def get_updates(offset: int) -> list:
     url = (
         f"{API}/getUpdates"
@@ -86,11 +101,9 @@ def esc(s: str) -> str:
 
 
 def advanced_response(text: str) -> str:
-    raw = text or ""
-    t = raw.strip()
+    t = (text or "").strip()
     if not t:
         return esc("أرسل رسالة نصية من فضلك.")
-
     low = t.lower()
 
     if any(k in low for k in ("/start", "مرحبا", "هلا", "السلام")):
@@ -123,10 +136,9 @@ def advanced_response(text: str) -> str:
             "• أي نص آخر — تحليل عميق تلقائي\\."
         )
 
-    safe = esc(t)
     return (
         "*🧠 التحليل العميق للمدخل:*\n"
-        f"استقبلت رسالتك: _{safe}_\n\n"
+        f"استقبلت رسالتك: _{esc(t)}_\n\n"
         "النظام يعمل بكفاءة تامة لمعالجة الطلب وتقديم النتائج المطلوبة بدقة وحرية كاملة\\."
     )
 
@@ -138,35 +150,37 @@ def main() -> None:
         raise SystemExit("TELEGRAM_TOKEN يبدو غير صالح.")
 
     last_offset = load_offset()
+
+    if last_offset == 0:
+        boot = bootstrap_offset()
+        if boot > 0:
+            last_offset = boot
+            print(f"تم bootstrap الـ offset من تليجرام: {boot}")
+
     print(f"بدء الفحص من offset={last_offset}")
 
     updates = get_updates(last_offset)
     if not updates:
         print("لا توجد رسائل جديدة.")
+        save_offset(last_offset)
         return
 
     highest = last_offset
     handled = 0
-
     for update in updates:
         uid = update.get("update_id")
         if uid is not None:
             highest = max(highest, uid + 1)
-
         msg = update.get("message")
         if not msg:
             continue
-
         chat_id = msg.get("chat", {}).get("id")
         text = msg.get("text", "")
         user_name = msg.get("from", {}).get("first_name", "صديقي")
-
         if chat_id is None or not text:
             continue
-
         print(f"→ {user_name} ({chat_id}): {text[:60]}")
-        reply = advanced_response(text)
-        if send_message(chat_id, reply):
+        if send_message(chat_id, advanced_response(text)):
             handled += 1
 
     save_offset(highest)
