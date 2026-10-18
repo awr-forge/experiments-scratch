@@ -3,7 +3,7 @@ import json
 import datetime
 import time
 
-TOKEN = "8674718185:AAHFbjFh-6Y3NxtzTA6j8JOpKxEg..."
+TOKEN = "8674718185:AAHFbjFh-6Y3NxtzTA6j8JOpKxEgZ2q3Yw1s"
 
 def get_updates(offset=None):
     url = f"https://api.telegram.org/bot{TOKEN}/getUpdates?timeout=30"
