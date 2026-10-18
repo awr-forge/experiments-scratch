@@ -2,23 +2,49 @@ name: Run N-Panther Bot
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   workflow_dispatch:
   schedule:
-    - cron: '*/30 * * * *'
+    - cron: '*/2 * * * *'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: telegram-poll
+  cancel-in-progress: false
 
 jobs:
   run-bot:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
+        with:
+          persist-credentials: true
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
+          python-version: '3.12'
+
+      - name: Restore offset cache
+        uses: actions/cache@v4
+        with:
+          path: offset.txt
+          key: telegram-offset-${{ github.run_id }}
+          restore-keys: |
+            telegram-offset-
 
       - name: Run Bot Script
-        timeout-minutes: 25
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
         run: python3 main.py
+
+      - name: Persist offset cache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: offset.txt
+          key: telegram-offset-${{ github.run_id }}
