@@ -5,19 +5,19 @@ on:
     branches: [main]
   workflow_dispatch:
   schedule:
-    - cron: '*/2 * * * *'
+    - cron: '0 */6 * * *'  # كل 6 ساعات
 
 permissions:
   contents: write
 
 concurrency:
   group: telegram-poll
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   run-bot:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 360  # أقصى حد لجيت هب
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -33,7 +33,6 @@ jobs:
         env:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
         run: python3 main.py
 
       - name: Persist state to git
