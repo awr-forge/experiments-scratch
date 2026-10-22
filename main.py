@@ -120,7 +120,7 @@ def ask_ai(chat_id: int, user_text: str) -> str:
     }
     
     # الموديلات الحديثة الشغالة
-    models = ["gemini-flash-latest", "gemini-2.5-flash", "gemini-2.0-flash"]
+    models = ["gemini-flash-latest"]
     last_error = "Unknown"
 
     for model in models:
