@@ -156,11 +156,12 @@ def ask_ai(chat_id: int, user_text: str) -> str:
                             save_history(h)
                             return reply
             except urllib.error.HTTPError as e:
-                if e.code in (503, 429):
-                    print(f"{model} -> HTTP {e.code} (busy), trying next...")
+                # لو زحمة (503/429) أو الموديل مش موجود/متوقف (404/400)
+                if e.code in (503, 429, 404, 400):
+                    print(f"{model} -> HTTP {e.code} (skipping to next model)")
                     continue # جرب الموديل اللي بعده
                 else:
-                    # لو خطأ حقيقي (400, 401) ابعتهوله
+                    # لو خطأ حقيقي (401/403) زي مفتاح غلط
                     body = e.read().decode("utf-8", "replace")
                     send_message(chat_id, f"⚠️ Error {e.code}: {body[:200]}")
                     return ""
