@@ -8,7 +8,7 @@ import urllib.request
 import urllib.error
 
 TOKEN = os.environ.get("TELEGRAM_TOKEN", "").strip()
-GEMINI_KEY = os.environ.get("GEMINI_API_KEY", "").strip()
+GEMINI_KEY = "".join(os.environ.get("GEMINI_API_KEY", "").split())
 
 API = f"https://api.telegram.org/bot{TOKEN}"
 GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent"
