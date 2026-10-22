@@ -115,7 +115,7 @@ def ask_ai(chat_id: int, user_text: str) -> str:
         return ""
     h = load_history()
     key = str(chat_id)
-    history = h.get(key, [])
+    history = [{"role": m["role"], "content": m["content"][:1000]} for m in h.get(key, [])]
 
     contents = []
     for msg in history:

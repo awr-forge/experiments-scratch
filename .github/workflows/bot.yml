@@ -5,7 +5,7 @@ on:
     branches: [main]
   workflow_dispatch:
   schedule:
-    - cron: '0 */6 * * *'  # كل 6 ساعات
+    - cron: '0 */6 * * *'
 
 permissions:
   contents: write
@@ -17,7 +17,7 @@ concurrency:
 jobs:
   run-bot:
     runs-on: ubuntu-latest
-    timeout-minutes: 360  # أقصى حد لجيت هب
+    timeout-minutes: 360
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -35,14 +35,13 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: python3 main.py
 
-      - name: Persist state to git
+      - name: Persist offset to git
         if: always()
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           touch offset.txt
           git add offset.txt
-          [ -f history.json ] && git add history.json || true
-          git diff --cached --quiet || git commit -m "chore: update bot state [skip ci]"
+          git diff --cached --quiet || git commit -m "chore: update offset [skip ci]"
           git pull --rebase origin main || true
           git push
