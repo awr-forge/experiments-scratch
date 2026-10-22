@@ -128,7 +128,7 @@ def ask_ai(chat_id: int, user_text: str) -> str:
     }
     
     models = [
-        "gemini-1.5-flash-latest",
+        "gemini-2.5-pro",
         "gemini-flash-latest",
         "gemini-2.0-flash"
     ]
