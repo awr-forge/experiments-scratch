@@ -111,6 +111,7 @@ def send_long(chat_id: int, text: str) -> bool:
     return True
 
 def ask_ai(chat_id: int, user_text: str) -> str:
+    print(f"DEBUG_KEY_LEN: {len(GEMINI_KEY)}")
     if not GEMINI_KEY:
         return ""
     h = load_history()
@@ -188,6 +189,7 @@ def process_update(update: dict) -> None:
 def main() -> None:
     if not TOKEN or ":" not in TOKEN:
         raise SystemExit("TELEGRAM_TOKEN غير صالح.")
+    print(f"DEBUG_KEY_LEN: {len(GEMINI_KEY)}")
     if not GEMINI_KEY:
         print("⚠️ GEMINI_API_KEY غير مضبوط")
 
