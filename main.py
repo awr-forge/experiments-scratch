@@ -122,7 +122,7 @@ def ask_ai(chat_id: int, user_text: str) -> str:
         "generationConfig": {"temperature": 0.7, "maxOutputTokens": 2048},
     }
     
-    models = ["gemini-2.0-flash", "gemini-1.5-flash"]
+    models = ["gemini-flash-latest", "gemini-2.5-flash", "gemini-2.0-flash"]
     last_error = "Unknown"
 
     for model in models:
