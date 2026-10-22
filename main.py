@@ -115,13 +115,13 @@ def ask_ai(chat_id: int, user_text: str) -> str:
         return ""
     h = load_history()
     key = str(chat_id)
-    history = [{"role": m["role"], "content": m["content"][:1000]} for m in h.get(key, [])]
+    history = h.get(key, [])
 
     contents = []
     for msg in history:
         role = "user" if msg["role"] == "user" else "model"
         contents.append({"role": role, "parts": [{"text": msg["content"]}]})
-    contents.append({"role": "user", "parts": [{"text": user_text}]})
+    contents.append({"role": "user", "parts": [{"text": user_text[:4000]}]})
 
     payload = {
         "system_instruction": {"parts": [{"text": SYSTEM_PROMPT}]},
@@ -147,15 +147,21 @@ def ask_ai(chat_id: int, user_text: str) -> str:
                     h[key] = history[-HISTORY_LIMIT:]
                     save_history(h)
                     return reply
+            send_message(chat_id, f"⚠️ Gemini Empty: {str(data)[:300]}")
     except urllib.error.HTTPError as e:
         try:
-            body = e.read().decode('utf-8','replace')
+            body = e.read().decode("utf-8", "replace")
             print(f"Gemini HTTP {e.code}: {body[:300]}")
+            send_message(chat_id, f"⚠️ Gemini HTTP {e.code}
+{body[:500]}")
         except Exception:
             print(f"Gemini HTTP {e.code}")
+            send_message(chat_id, f"⚠️ Gemini HTTP {e.code}")
     except Exception as e:
         print(f"Gemini error: {e}")
+        send_message(chat_id, f"⚠️ Error: {str(e)}")
     return ""
+
 
 def fallback_response(text: str) -> str:
     low = (text or "").lower()
