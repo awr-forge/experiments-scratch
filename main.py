@@ -19,8 +19,6 @@ TIMEOUT = 15
 AI_TIMEOUT = 40
 HISTORY_LIMIT = 20
 POLL_INTERVAL = 2
-
-# 5 ساعات و 45 دقيقة (أقصى حد لجيت هب 6 ساعات)
 RUN_DURATION = 5 * 3600 + 45 * 60
 
 SYSTEM_PROMPT = (
@@ -111,7 +109,6 @@ def send_long(chat_id: int, text: str) -> bool:
     return True
 
 def ask_ai(chat_id: int, user_text: str) -> str:
-    print(f"DEBUG_KEY_LEN: {len(GEMINI_KEY)}")
     if not GEMINI_KEY:
         return ""
     h = load_history()
@@ -153,8 +150,7 @@ def ask_ai(chat_id: int, user_text: str) -> str:
         try:
             body = e.read().decode("utf-8", "replace")
             print(f"Gemini HTTP {e.code}: {body[:300]}")
-            send_message(chat_id, f"⚠️ Gemini HTTP {e.code}
-{body[:500]}")
+            send_message(chat_id, f"⚠️ Gemini HTTP {e.code}\n{body[:500]}")
         except Exception:
             print(f"Gemini HTTP {e.code}")
             send_message(chat_id, f"⚠️ Gemini HTTP {e.code}")
@@ -162,7 +158,6 @@ def ask_ai(chat_id: int, user_text: str) -> str:
         print(f"Gemini error: {e}")
         send_message(chat_id, f"⚠️ Error: {str(e)}")
     return ""
-
 
 def fallback_response(text: str) -> str:
     low = (text or "").lower()
@@ -181,15 +176,15 @@ def process_update(update: dict) -> None:
     name = msg.get("from", {}).get("first_name", "?")
     print(f"→ {name} ({chat_id}): {text[:60]}")
 
-    reply = ask_ai(chat_id, text[:3000]) if GEMINI_KEY else ""
+    reply = ask_ai(chat_id, text) if GEMINI_KEY else ""
     if not reply:
         reply = fallback_response(text)
     send_long(chat_id, reply)
 
 def main() -> None:
+    print(f"DEBUG_KEY_LEN: {len(GEMINI_KEY)}")
     if not TOKEN or ":" not in TOKEN:
         raise SystemExit("TELEGRAM_TOKEN غير صالح.")
-    print(f"DEBUG_KEY_LEN: {len(GEMINI_KEY)}")
     if not GEMINI_KEY:
         print("⚠️ GEMINI_API_KEY غير مضبوط")
 
@@ -205,7 +200,7 @@ def main() -> None:
             print(f"bootstrap: {e}")
 
     start_time = time.time()
-    print(f"🚀 Bot started — offset={last_offset} — سيشتغل لمدة {RUN_DURATION//3600} ساعات")
+    print(f"🚀 Bot started — offset={last_offset} — سيشتغل لمدة 5 ساعات")
 
     while _running and (time.time() - start_time < RUN_DURATION):
         try:
