@@ -126,38 +126,52 @@ def ask_ai(chat_id: int, user_text: str) -> str:
         "contents": contents,
         "generationConfig": {"temperature": 0.7, "maxOutputTokens": 2048},
     }
-    req = urllib.request.Request(
-        GEMINI_URL,
-        data=json.dumps(payload).encode("utf-8"),
-        headers={"Content-Type": "application/json", "X-goog-api-key": GEMINI_KEY},
-        method="POST",
-    )
-    try:
-        with urllib.request.urlopen(req, timeout=AI_TIMEOUT) as resp:
-            data = json.loads(resp.read().decode("utf-8"))
-            candidates = data.get("candidates", [])
-            if candidates:
-                parts = candidates[0].get("content", {}).get("parts", [])
-                reply = "".join(p.get("text", "") for p in parts).strip()
-                if reply:
-                    history.append({"role": "user", "content": user_text})
-                    history.append({"role": "assistant", "content": reply})
-                    h[key] = history[-HISTORY_LIMIT:]
-                    save_history(h)
-                    return reply
-            send_message(chat_id, f"⚠️ Gemini Empty: {str(data)[:300]}")
-    except urllib.error.HTTPError as e:
-        try:
-            body = e.read().decode("utf-8", "replace")
-            print(f"Gemini HTTP {e.code}: {body[:300]}")
-            send_message(chat_id, f"⚠️ Gemini HTTP {e.code}\n{body[:500]}")
-        except Exception:
-            print(f"Gemini HTTP {e.code}")
-            send_message(chat_id, f"⚠️ Gemini HTTP {e.code}")
-    except Exception as e:
-        print(f"Gemini error: {e}")
-        send_message(chat_id, f"⚠️ Error: {str(e)}")
+    
+    models = [
+        "gemini-1.5-flash-latest",
+        "gemini-flash-latest",
+        "gemini-2.0-flash"
+    ]
+    
+    for attempt in range(2):
+        for model in models:
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+            req = urllib.request.Request(
+                url,
+                data=json.dumps(payload).encode("utf-8"),
+                headers={"Content-Type": "application/json", "X-goog-api-key": GEMINI_KEY},
+                method="POST",
+            )
+            try:
+                with urllib.request.urlopen(req, timeout=AI_TIMEOUT) as resp:
+                    data = json.loads(resp.read().decode("utf-8"))
+                    candidates = data.get("candidates", [])
+                    if candidates:
+                        parts = candidates[0].get("content", {}).get("parts", [])
+                        reply = "".join(p.get("text", "") for p in parts).strip()
+                        if reply:
+                            history.append({"role": "user", "content": user_text})
+                            history.append({"role": "assistant", "content": reply})
+                            h[key] = history[-HISTORY_LIMIT:]
+                            save_history(h)
+                            return reply
+            except urllib.error.HTTPError as e:
+                if e.code in (503, 429):
+                    print(f"{model} -> HTTP {e.code} (busy), trying next...")
+                    continue # جرب الموديل اللي بعده
+                else:
+                    # لو خطأ حقيقي (400, 401) ابعتهوله
+                    body = e.read().decode("utf-8", "replace")
+                    send_message(chat_id, f"⚠️ Error {e.code}: {body[:200]}")
+                    return ""
+            except Exception as e:
+                print(f"Error with {model}: {e}")
+        
+        time.sleep(2) # استنى ثانيتين قبل المحاولة التانية
+    
+    send_message(chat_id, "⚠️ خوادم الذكاء الاصطناعي مشغولة جداً، جرب تاني بعد شوية.")
     return ""
+
 
 def fallback_response(text: str) -> str:
     low = (text or "").lower()
