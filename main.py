@@ -3,7 +3,6 @@ import json
 import time
 import signal
 import sys
-import datetime
 import urllib.request
 import urllib.error
 
@@ -34,7 +33,6 @@ _running = True
 def _stop(*_):
     global _running
     _running = False
-    print("إشارة إيقاف — بنقفل...")
 
 signal.signal(signal.SIGTERM, _stop)
 signal.signal(signal.SIGINT, _stop)
@@ -43,28 +41,28 @@ def load_offset() -> int:
     try:
         with open(OFFSET_FILE, "r", encoding="utf-8") as f:
             return int(f.read().strip() or "0")
-    except (FileNotFoundError, ValueError):
+    except:
         return 0
 
 def save_offset(n: int) -> None:
     try:
         with open(OFFSET_FILE, "w", encoding="utf-8") as f:
             f.write(str(n))
-    except OSError:
+    except:
         pass
 
 def load_history() -> dict:
     try:
         with open(HISTORY_FILE, "r", encoding="utf-8") as f:
             return json.load(f) or {}
-    except (FileNotFoundError, ValueError):
+    except:
         return {}
 
 def save_history(h: dict) -> None:
     try:
         with open(HISTORY_FILE, "w", encoding="utf-8") as f:
             json.dump(h, f, ensure_ascii=False, indent=2)
-    except OSError:
+    except:
         pass
 
 def get_updates(offset: int) -> list:
@@ -76,11 +74,11 @@ def get_updates(offset: int) -> list:
             if data.get("ok"):
                 return data.get("result", [])
     except Exception as e:
-        print(f"getUpdates error: {e}")
+        pass
     return []
 
 def send_message(chat_id: int, text: str) -> bool:
-    payload = {"chat_id": chat_id, "text": text, "disable_web_page_preview": True}
+    payload = {"chat_id": chat_id, "text": text}
     body = json.dumps(payload).encode("utf-8")
     req = urllib.request.Request(
         f"{API}/sendMessage", data=body, headers={"Content-Type": "application/json"}, method="POST"
@@ -89,9 +87,8 @@ def send_message(chat_id: int, text: str) -> bool:
         with urllib.request.urlopen(req, timeout=TIMEOUT) as resp:
             resp.read()
         return True
-    except Exception as e:
-        print(f"sendMessage error: {e}")
-    return False
+    except:
+        return False
 
 def send_long(chat_id: int, text: str) -> bool:
     if len(text) <= 4000:
@@ -122,6 +119,7 @@ def ask_ai(chat_id: int, user_text: str) -> str:
         "generationConfig": {"temperature": 0.7, "maxOutputTokens": 2048},
     }
     
+    # الموديلات الحديثة الشغالة
     models = ["gemini-flash-latest", "gemini-2.5-flash", "gemini-2.0-flash"]
     last_error = "Unknown"
 
@@ -148,21 +146,16 @@ def ask_ai(chat_id: int, user_text: str) -> str:
                         return reply
         except urllib.error.HTTPError as e:
             body = e.read().decode("utf-8", "replace")
-            print(f"{model} HTTP {e.code}: {body[:200]}")
+            print(f"{model} HTTP {e.code}")
             last_error = f"{e.code}: {body[:100]}"
-            
-            # لو المفتاح غلط (400/403) قف فوراً وابعت للمستخدم
             if e.code in (400, 403):
                 send_message(chat_id, f"⚠️ خطأ في المفتاح:\n{body[:300]}")
                 return ""
-            # لو زحمة (429/503) أو موديل مش موجود (404) جرب اللي بعده
             continue
         except Exception as e:
-            print(f"{model} error: {e}")
             last_error = str(e)
             continue
             
-    # لو كل الموديلات فشلت
     send_message(chat_id, f"⚠️ فشلت محاولة الاتصال بجوجل.\nالسبب: {last_error}")
     return ""
 
@@ -175,8 +168,6 @@ def process_update(update: dict) -> None:
     chat_id = msg.get("chat", {}).get("id")
     text = msg.get("text", "")
     if not chat_id or not text: return
-    name = msg.get("from", {}).get("first_name", "?")
-    print(f"→ {name}: {text[:40]}")
 
     reply = ask_ai(chat_id, text)
     if not reply:
@@ -203,13 +194,12 @@ def main() -> None:
                     try:
                         process_update(u)
                     except Exception as e:
-                        print(f"process error: {e}")
+                        pass
                 last_offset = highest
                 save_offset(last_offset)
             else:
                 time.sleep(POLL_INTERVAL)
-        except Exception as e:
-            print(f"loop error: {e}")
+        except Exception:
             time.sleep(5)
 
     save_offset(last_offset)
