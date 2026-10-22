@@ -149,7 +149,8 @@ def ask_ai(chat_id: int, user_text: str) -> str:
                     return reply
     except urllib.error.HTTPError as e:
         try:
-            print(f"Gemini HTTP {e.code}: {e.read().decode('utf-8','replace')[:300]}")
+            body = e.read().decode('utf-8','replace')
+            print(f"Gemini HTTP {e.code}: {body[:300]}")
         except Exception:
             print(f"Gemini HTTP {e.code}")
     except Exception as e:
@@ -173,7 +174,7 @@ def process_update(update: dict) -> None:
     name = msg.get("from", {}).get("first_name", "?")
     print(f"→ {name} ({chat_id}): {text[:60]}")
 
-    reply = ask_ai(chat_id, text) if GEMINI_KEY else ""
+    reply = ask_ai(chat_id, text[:3000]) if GEMINI_KEY else ""
     if not reply:
         reply = fallback_response(text)
     send_long(chat_id, reply)
