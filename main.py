@@ -13,20 +13,69 @@ API = f"https://api.telegram.org/bot{TOKEN}"
 OFFSET_FILE = "offset.txt"
 HISTORY_FILE = "history.json"
 TIMEOUT = 15
-AI_TIMEOUT = 40
+AI_TIMEOUT = 60
 HISTORY_LIMIT = 20
 POLL_INTERVAL = 2
 RUN_DURATION = 5 * 3600 + 45 * 60
 
-SYSTEM_PROMPT = (
+GENERAL_PROMPT = (
     "أنت N-Panther، مساعد ذكي متعدد القدرات ومفكر عميق. "
     "لديك معرفة واسعة في العلوم، البرمجة، التاريخ، الرياضيات، والأدب. "
     "ردودك بالعربي الفصيح البسيط أو العامية حسب لغة المستخدم. "
-    "فكر خطوة بخطوة قبل أن تجيب. قدم إجابات مفصلة وعميقة ومحللة. "
+    "فكر خطوة بخطوة. قدم إجابات مفصلة وعميقة. "
     "لو السؤال تقني، اشرح الأسباب والحلول بالتفصيل. "
-    "ممنوع تقول إنك مجرد نموذج لغوي. أنت مساعد ذكي. "
-    "لو مش واضح، اسأل للتوضيح."
+    "ممنوع تقول إنك مجرد نموذج لغوي. لو مش واضح، اسأل للتوضيح."
 )
+
+TRADING_PROMPT = (
+    "أنت N-Panther في وضع التداول — خبير استراتيجيات تداول محترف. "
+    "لديك خبرة في الفوركس، الكريبتو، السلع، والأسهم. "
+    "تعرف MT5، TradingView، Pine Script، Python (pandas/numpy/backtrader). "
+    "\n\n"
+    "عندما يطلب المستخدم استراتيجية، قدم مخرجات منظمة بالشكل ده:\n\n"
+    "# 📊 اسم الاستراتيجية\n\n"
+    "**النوع:** اتجاهية/زخم/ارتداد/انعكاس/بريك أوت\n"
+    "**الأصل المناسب:** [اذكر أزواج العملات أو الكريبتو أو السلع]\n"
+    "**الإطار الزمني:** M15/H1/H4/D1\n\n"
+    "## المؤشرات\n"
+    "- اسم المؤشر + الإعدادات + الدور في الاستراتيجية\n\n"
+    "## قواعد الدخول (Long)\n"
+    "1. شرط رقم 1\n2. شرط رقم 2\n\n"
+    "## قواعد الدخول (Short)\n"
+    "1. شرط عكسي\n\n"
+    "## إدارة المخاطر\n"
+    "- SL: [طريقة الحساب]\n"
+    "- TP: [طريقة الحساب، نسبة R:R]\n"
+    "- حجم الصفقة: 1-2% من رأس المال\n"
+    "- Max Drawdown: X%\n\n"
+    "## الكود (MT5 Python)\n"
+    "```python\n[كود جاهز للتشغيل]\n```\n\n"
+    "## ملاحظات التطبيق\n"
+    "- Backtest على 6-12 شهر\n"
+    "- جرب على demo أولاً\n\n"
+    "قواعد صارمة:\n"
+    "- لا تقترح استراتيجية بدون SL\n"
+    "- دائماً نسبة R:R لا تقل عن 1:1.5\n"
+    "- استخدم ATR لحساب SL ديناميكي\n"
+    "- الكود يكون MT5 ready أو Pine Script حسب طلب المستخدم\n"
+    "- لو المستخدم طلب أصل معين، ركز عليه\n"
+    "- لو مش واضح، اقترح 2-3 استراتيجيات مختلفة\n"
+)
+
+TRADING_KEYWORDS = (
+    "استراتيجية", "استراتيجيه", "ستراتيجية", "تداول", "تريدنج", "صفقة", "صفقات",
+    "دخول", "خروج", "شراء", "بيع", "لونج", "شورت", "long", "short",
+    "eur/usd", "gbpusd", "usdjpy", "xauusd", "gold", "bitcoin", "btc", "eth",
+    "فوركس", "كريبتو", "عملات", "ذهب", "نفط", "أسهم",
+    "rsi", "ema", "macd", "atr", "bollinger", "fibonacci", "support", "resistance",
+    "مؤشر", "مؤشرات", "تحليل فني", "كسر", "دعم", "مقاومة", "اتجاه", "زخم",
+    "سكالبينج", "سوينج", "سكالب", "باك تست", "backtest", "mt5", "metatrader",
+    "pine script", "tradingview", "risk", "stop loss", "take profit"
+)
+
+def is_trading_query(text: str) -> bool:
+    low = (text or "").lower()
+    return any(k in low for k in TRADING_KEYWORDS)
 
 _running = True
 
@@ -73,12 +122,12 @@ def get_updates(offset: int) -> list:
             data = json.loads(resp.read().decode("utf-8"))
             if data.get("ok"):
                 return data.get("result", [])
-    except Exception as e:
+    except:
         pass
     return []
 
 def send_message(chat_id: int, text: str) -> bool:
-    payload = {"chat_id": chat_id, "text": text}
+    payload = {"chat_id": chat_id, "text": text, "disable_web_page_preview": True}
     body = json.dumps(payload).encode("utf-8")
     req = urllib.request.Request(
         f"{API}/sendMessage", data=body, headers={"Content-Type": "application/json"}, method="POST"
@@ -102,25 +151,31 @@ def ask_ai(chat_id: int, user_text: str) -> str:
     if not GEMINI_KEY:
         send_message(chat_id, "⚠️ المفتاح مش موجود في السيرفر.")
         return ""
-    
+
+    trading = is_trading_query(user_text)
+    system = TRADING_PROMPT if trading else GENERAL_PROMPT
+    print(f"Mode: {'TRADING' if trading else 'GENERAL'}")
+
     h = load_history()
     key = str(chat_id)
     history = h.get(key, [])
 
     contents = []
-    for msg in history:
+    for msg in history[-10:]:
         role = "user" if msg["role"] == "user" else "model"
-        contents.append({"role": role, "parts": [{"text": msg["content"]}]})
+        contents.append({"role": role, "parts": [{"text": msg["content"][:1500]}]})
     contents.append({"role": "user", "parts": [{"text": user_text[:4000]}]})
 
     payload = {
-        "system_instruction": {"parts": [{"text": SYSTEM_PROMPT}]},
+        "system_instruction": {"parts": [{"text": system}]},
         "contents": contents,
-        "generationConfig": {"temperature": 0.7, "maxOutputTokens": 2048},
+        "generationConfig": {
+            "temperature": 0.8 if trading else 0.7,
+            "maxOutputTokens": 4096 if trading else 2048
+        },
     }
-    
-    # الموديلات الحديثة الشغالة
-    models = ["gemini-3.8-flash", "gemini-3.5-flash", "gemini-flash-latest"]
+
+    models = ["gemini-flash-latest", "gemini-3.8-flash", "gemini-2.5-flash"]
     last_error = "Unknown"
 
     for model in models:
@@ -140,27 +195,30 @@ def ask_ai(chat_id: int, user_text: str) -> str:
                     reply = "".join(p.get("text", "") for p in parts).strip()
                     if reply:
                         history.append({"role": "user", "content": user_text})
-                        history.append({"role": "assistant", "content": reply})
+                        history.append({"role": "assistant", "content": reply[:2000]})
                         h[key] = history[-HISTORY_LIMIT:]
                         save_history(h)
                         return reply
         except urllib.error.HTTPError as e:
             body = e.read().decode("utf-8", "replace")
             print(f"{model} HTTP {e.code}")
-            last_error = f"{e.code}: {body[:100]}"
+            last_error = f"{e.code}"
+            if e.code == 429:
+                send_message(chat_id, "⚠️ استهلكت الحد المجاني (429). استنى دقيقة وجرب تاني.")
+                return ""
             if e.code in (400, 403):
-                send_message(chat_id, f"⚠️ خطأ في المفتاح:\n{body[:300]}")
+                send_message(chat_id, f"⚠️ مشكلة في المفتاح ({e.code}).")
                 return ""
             continue
         except Exception as e:
             last_error = str(e)
             continue
-            
-    send_message(chat_id, f"⚠️ فشلت محاولة الاتصال بجوجل.\nالسبب: {last_error}")
+
+    send_message(chat_id, f"⚠️ فشل الاتصال بجوجل ({last_error}). جرب تاني بعد دقيقة.")
     return ""
 
 def fallback_response(text: str) -> str:
-    return "النظام يستقبل رسالتك."
+    return "النظام يستقبل رسالتك. جرب سؤال محدد."
 
 def process_update(update: dict) -> None:
     msg = update.get("message")
@@ -169,6 +227,7 @@ def process_update(update: dict) -> None:
     text = msg.get("text", "")
     if not chat_id or not text: return
 
+    print(f"→ {msg.get('from', {}).get('first_name', '?')}: {text[:60]}")
     reply = ask_ai(chat_id, text)
     if not reply:
         reply = fallback_response(text)
@@ -177,10 +236,10 @@ def process_update(update: dict) -> None:
 def main() -> None:
     if not TOKEN or ":" not in TOKEN:
         raise SystemExit("TELEGRAM_TOKEN غير صالح.")
-    
+
     last_offset = load_offset()
     start_time = time.time()
-    print(f"🚀 Bot started — offset={last_offset}")
+    print(f"🚀 N-Panther started — offset={last_offset} — mode: general+trading")
 
     while _running and (time.time() - start_time < RUN_DURATION):
         try:
@@ -194,7 +253,7 @@ def main() -> None:
                     try:
                         process_update(u)
                     except Exception as e:
-                        pass
+                        print(f"process error: {e}")
                 last_offset = highest
                 save_offset(last_offset)
             else:
