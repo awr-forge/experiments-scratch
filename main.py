@@ -19,63 +19,30 @@ POLL_INTERVAL = 2
 RUN_DURATION = 5 * 3600 + 45 * 60
 
 GENERAL_PROMPT = (
-    "أنت N-Panther، مساعد ذكي متعدد القدرات ومفكر عميق. "
+    "أنت N-Panther، مساعد ذكي عام ومفكر عميق. "
     "لديك معرفة واسعة في العلوم، البرمجة، التاريخ، الرياضيات، والأدب. "
     "ردودك بالعربي الفصيح البسيط أو العامية حسب لغة المستخدم. "
     "فكر خطوة بخطوة. قدم إجابات مفصلة وعميقة. "
-    "لو السؤال تقني، اشرح الأسباب والحلول بالتفصيل. "
-    "ممنوع تقول إنك مجرد نموذج لغوي. لو مش واضح، اسأل للتوضيح."
+    "ممنوع تقول إنك مجرد نموذج لغوي."
 )
 
 TRADING_PROMPT = (
     "أنت N-Panther في وضع التداول — خبير استراتيجيات تداول محترف. "
     "لديك خبرة في الفوركس، الكريبتو، السلع، والأسهم. "
-    "تعرف MT5، TradingView، Pine Script، Python (pandas/numpy/backtrader). "
+    "تعرف MT5، TradingView، Pine Script، Python. "
     "\n\n"
-    "عندما يطلب المستخدم استراتيجية، قدم مخرجات منظمة بالشكل ده:\n\n"
+    "عندما يطلب المستخدم استراتيجية، قدم مخرجات منظمة:\n\n"
     "# 📊 اسم الاستراتيجية\n\n"
-    "**النوع:** اتجاهية/زخم/ارتداد/انعكاس/بريك أوت\n"
-    "**الأصل المناسب:** [اذكر أزواج العملات أو الكريبتو أو السلع]\n"
-    "**الإطار الزمني:** M15/H1/H4/D1\n\n"
-    "## المؤشرات\n"
-    "- اسم المؤشر + الإعدادات + الدور في الاستراتيجية\n\n"
-    "## قواعد الدخول (Long)\n"
-    "1. شرط رقم 1\n2. شرط رقم 2\n\n"
-    "## قواعد الدخول (Short)\n"
-    "1. شرط عكسي\n\n"
-    "## إدارة المخاطر\n"
-    "- SL: [طريقة الحساب]\n"
-    "- TP: [طريقة الحساب، نسبة R:R]\n"
-    "- حجم الصفقة: 1-2% من رأس المال\n"
-    "- Max Drawdown: X%\n\n"
-    "## الكود (MT5 Python)\n"
-    "```python\n[كود جاهز للتشغيل]\n```\n\n"
-    "## ملاحظات التطبيق\n"
-    "- Backtest على 6-12 شهر\n"
-    "- جرب على demo أولاً\n\n"
-    "قواعد صارمة:\n"
-    "- لا تقترح استراتيجية بدون SL\n"
-    "- دائماً نسبة R:R لا تقل عن 1:1.5\n"
-    "- استخدم ATR لحساب SL ديناميكي\n"
-    "- الكود يكون MT5 ready أو Pine Script حسب طلب المستخدم\n"
-    "- لو المستخدم طلب أصل معين، ركز عليه\n"
-    "- لو مش واضح، اقترح 2-3 استراتيجيات مختلفة\n"
+    "**النوع:** اتجاهية/زخم/ارتداد/انعكاس\n"
+    "**الأصل المناسب:** [أزواج العملات/كريبتو/سلع]\n"
+    "**الإطار الزمني:** M15/H1/H4\n\n"
+    "## المؤشرات\n- اسم المؤشر + الإعدادات\n\n"
+    "## قواعد الدخول (Long)\n1. شرط 1\n2. شرط 2\n\n"
+    "## قواعد الدخول (Short)\n1. شرط عكسي\n\n"
+    "## إدارة المخاطر\n- SL: [حساب]\n- TP: [حساب]\n- R:R لا يقل عن 1:1.5\n- 1-2% من رأس المال\n\n"
+    "## الكود (MT5 Python أو Pine)\n```python\n[كود جاهز]\n```\n\n"
+    "## ملاحظات\n- Backtest على 6 أشهر\n"
 )
-
-TRADING_KEYWORDS = (
-    "استراتيجية", "استراتيجيه", "ستراتيجية", "تداول", "تريدنج", "صفقة", "صفقات",
-    "دخول", "خروج", "شراء", "بيع", "لونج", "شورت", "long", "short",
-    "eur/usd", "gbpusd", "usdjpy", "xauusd", "gold", "bitcoin", "btc", "eth",
-    "فوركس", "كريبتو", "عملات", "ذهب", "نفط", "أسهم",
-    "rsi", "ema", "macd", "atr", "bollinger", "fibonacci", "support", "resistance",
-    "مؤشر", "مؤشرات", "تحليل فني", "كسر", "دعم", "مقاومة", "اتجاه", "زخم",
-    "سكالبينج", "سوينج", "سكالب", "باك تست", "backtest", "mt5", "metatrader",
-    "pine script", "tradingview", "risk", "stop loss", "take profit"
-)
-
-def is_trading_query(text: str) -> bool:
-    low = (text or "").lower()
-    return any(k in low for k in TRADING_KEYWORDS)
 
 _running = True
 
@@ -152,9 +119,20 @@ def ask_ai(chat_id: int, user_text: str) -> str:
         send_message(chat_id, "⚠️ المفتاح مش موجود في السيرفر.")
         return ""
 
-    trading = is_trading_query(user_text)
-    system = TRADING_PROMPT if trading else GENERAL_PROMPT
-    print(f"Mode: {'TRADING' if trading else 'GENERAL'}")
+    # 👇 الفصل هنا: بنشوف لو الرسالة بادئة بـ /trade أو /استراتيجية
+    is_trade = user_text.strip().startswith(("/trade", "/استراتيجية", "/تداول"))
+    
+    if is_trade:
+        # بنشيل الأمر من النص عشان يتبعت للـ AI نضيف
+        user_text = user_text.replace("/trade", "").replace("/استراتيجية", "").replace("/تداول", "").strip()
+        system = TRADING_PROMPT
+        print("Mode: TRADING")
+        if not user_text:
+            send_message(chat_id, "أرسل الأمر مع الأصل اللي عايز استراتيجية له. مثال:\n/trade EUR/USD")
+            return ""
+    else:
+        system = GENERAL_PROMPT
+        print("Mode: GENERAL")
 
     h = load_history()
     key = str(chat_id)
@@ -170,8 +148,8 @@ def ask_ai(chat_id: int, user_text: str) -> str:
         "system_instruction": {"parts": [{"text": system}]},
         "contents": contents,
         "generationConfig": {
-            "temperature": 0.8 if trading else 0.7,
-            "maxOutputTokens": 4096 if trading else 2048
+            "temperature": 0.8 if is_trade else 0.7,
+            "maxOutputTokens": 4096 if is_trade else 2048
         },
     }
 
@@ -183,7 +161,7 @@ def ask_ai(chat_id: int, user_text: str) -> str:
         req = urllib.request.Request(
             url,
             data=json.dumps(payload).encode("utf-8"),
-            headers={"Content-Type": "application/json", "X-goog-api-key": GEMINI_KEY},
+            headers={"Content-Type": "application/json", "X-Goog-Api-Key": GEMINI_KEY},
             method="POST",
         )
         try:
@@ -214,11 +192,8 @@ def ask_ai(chat_id: int, user_text: str) -> str:
             last_error = str(e)
             continue
 
-    send_message(chat_id, f"⚠️ فشل الاتصال بجوجل ({last_error}). جرب تاني بعد دقيقة.")
+    send_message(chat_id, f"⚠️ فشل الاتصال بجوجل ({last_error}). جرب تاني.")
     return ""
-
-def fallback_response(text: str) -> str:
-    return "النظام يستقبل رسالتك. جرب سؤال محدد."
 
 def process_update(update: dict) -> None:
     msg = update.get("message")
@@ -229,9 +204,8 @@ def process_update(update: dict) -> None:
 
     print(f"→ {msg.get('from', {}).get('first_name', '?')}: {text[:60]}")
     reply = ask_ai(chat_id, text)
-    if not reply:
-        reply = fallback_response(text)
-    send_long(chat_id, reply)
+    if reply:
+        send_long(chat_id, reply)
 
 def main() -> None:
     if not TOKEN or ":" not in TOKEN:
@@ -239,7 +213,7 @@ def main() -> None:
 
     last_offset = load_offset()
     start_time = time.time()
-    print(f"🚀 N-Panther started — offset={last_offset} — mode: general+trading")
+    print(f"🚀 N-Panther started — offset={last_offset}")
 
     while _running and (time.time() - start_time < RUN_DURATION):
         try:
