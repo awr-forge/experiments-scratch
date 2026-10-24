@@ -13,7 +13,13 @@ def _stop(*_):
 signal.signal(signal.SIGTERM, _stop)
 signal.signal(signal.SIGINT, _stop)
 
-PROMPT_TRADE = "أنت كبير استراتيجيي التداول في صندوق تحوط. اعمل استراتيجية مؤسسية دقيقة (دخول، خروج، إدارة مخاطر 1%، كود MT5) لزوج العملات المطلوب."
+PROMPT_TRADE = (
+    "أنت كبير استراتيجيي التداول في صندوق تحوط عالمي متخصص في الفوركس. "
+    "لديك خبرة 20 عاماً في أزواج العملات الرئيسية والجلسات (لندن، نيويورك، طوكيو). "
+    "اعمل استراتيجية مؤسسية دقيقة (دخول، خروج، إدارة مخاطر 1%، كود MT5) "
+    "للزوج المطلوب فقط. ممنوع تماماً تتكلم عن أي زوج آخر أو أي سوق آخر. "
+    "ركّز فقط على زوج الفوركس المطلوب."
+)
 PROMPT_GEN = "أنت N-Panther مساعد ذكي عام. رد بالعربية بأسلوب مفيد ومباشر."
 
 def get_updates(offset):
@@ -37,12 +43,15 @@ def send(chat_id, text, markup=None):
 def ask_ai(text, mode="general"):
     if not GEMINI_KEY: return "⚠️ المفتاح مش موجود."
     sys_p = PROMPT_TRADE if mode == "trade" else PROMPT_GEN
-    models = ["gemini-2.5-pro", "gemini-2.5-flash", "gemini-flash-latest"] if mode == "trade" else ["gemini-flash-latest", "gemini-2.5-flash"]
+    
+    models = ["gemini-2.0-flash", "gemini-flash-latest"] if mode == "trade" else ["gemini-flash-latest", "gemini-2.0-flash"]
+    
     payload = {
         "system_instruction": {"parts": [{"text": sys_p}]},
         "contents": [{"role": "user", "parts": [{"text": text[:4000]}]}],
         "generationConfig": {"temperature": 0.4 if mode == "trade" else 0.7, "maxOutputTokens": 4096}
     }
+    last_err = "Unknown"
     for m in models:
         try:
             req = urllib.request.Request(f"https://generativelanguage.googleapis.com/v1beta/models/{m}:generateContent", data=json.dumps(payload).encode(), headers={"Content-Type": "application/json", "X-Goog-Api-Key": GEMINI_KEY}, method="POST")
@@ -50,10 +59,14 @@ def ask_ai(text, mode="general"):
                 d = json.loads(resp.read().decode())
                 if d.get("candidates"): return d["candidates"][0]["content"]["parts"][0]["text"]
         except urllib.error.HTTPError as e:
-            if e.code in (429, 503): continue
-            if e.code in (400, 403): return "⚠️ مشكلة في المفتاح."
-        except: continue
-    return "⚠️ فشل الاتصال بجوجل."
+            body = e.read().decode("utf-8", "replace")
+            last_err = f"Code {e.code}: {body[:150]}"
+            if e.code in (400, 403): return f"⚠️ مشكلة في المفتاح ({e.code})."
+            continue
+        except Exception as e:
+            last_err = str(e)
+            continue
+    return f"⚠️ فشل الاتصال بجوجل.\nالسبب: {last_err}"
 
 def handle(u):
     if "message" in u:
@@ -61,17 +74,23 @@ def handle(u):
         cid = m.get("chat", {}).get("id")
         txt = m.get("text", "").strip()
         if not cid or not txt: return
+        
         if txt.startswith(("/start", "/menu")):
-            markup = {"inline_keyboard": [[{"text": "🧠 ذكاء عام", "callback_data": "gen"}], [{"text": "📈 استراتيجيات فوركس", "callback_data": "fx_menu"}]]}
-            send(cid, "اختر الوضع:", markup)
+            markup = {"inline_keyboard": [
+                [{"text": "🧠 ذكاء عام", "callback_data": "gen"}],
+                [{"text": "📈 استراتيجيات فوركس", "callback_data": "fx_menu"}]
+            ]}
+            send(cid, "أهلاً بك في N-Panther.\nاختر الوضع:", markup)
+            
         elif txt.startswith("/fx"):
             pair = txt.replace("/fx", "").strip()
-            if not pair: send(cid, "مثال: /fx EUR/USD")
+            if not pair: send(cid, "أرسل الأمر مع الزوج. مثال: /fx EUR/USD")
             else:
-                send(cid, f"⏳ الخبير يبني استراتيجية لـ {pair}...")
-                send(cid, ask_ai(f"استراتيجية لـ {pair}", mode="trade"))
+                send(cid, f"⏳ الخبير يبني استراتيجية فوركس لـ {pair}...")
+                send(cid, ask_ai(f"اعمل استراتيجية فوركس لزوج {pair} فقط.", mode="trade"))
         else:
             send(cid, ask_ai(txt, mode="general"))
+            
     elif "callback_query" in u:
         cq = u["callback_query"]
         cid = cq["message"]["chat"]["id"]
@@ -79,21 +98,33 @@ def handle(u):
         try:
             urllib.request.urlopen(urllib.request.Request(f"{API}/answerCallbackQuery", data=json.dumps({"callback_query_id": cq["id"]}).encode(), headers={"Content-Type":"application/json"}, method="POST"), timeout=5)
         except: pass
-        if data == "gen": send(cid, "🧠 اكتب سؤالك الآن.")
+        
+        if data == "gen": 
+            send(cid, "🧠 اكتب سؤالك الآن.")
+            
         elif data == "fx_menu":
-            markup = {"inline_keyboard": [[{"text": "🇪🇺 EUR/USD", "callback_data": "fx_EUR/USD"}, {"text": "🇬🇧 GBP/USD", "callback_data": "fx_GBP/USD"}], [{"text": "🥇 XAU/USD", "callback_data": "fx_XAU/USD"}]]}
-            send(cid, "اختر الزوج:", markup)
-        elif data.startswith("fx_"):
-            pair = data.replace("fx_", "")
-            send(cid, f"⏳ الخبير يبني استراتيجية لـ {pair}...")
-            send(cid, ask_ai(f"استراتيجية لـ {pair}", mode="trade"))
+            markup = {"inline_keyboard": [
+                [{"text": "🇪🇺 EUR/USD", "callback_data": "do_EUR/USD"}, {"text": "🇬🇧 GBP/USD", "callback_data": "do_GBP/USD"}],
+                [{"text": "🇺🇸 USD/JPY", "callback_data": "do_USD/JPY"}, {"text": "🇦🇺 AUD/USD", "callback_data": "do_AUD/USD"}],
+                [{"text": "🇨🇭 USD/CHF", "callback_data": "do_USD/CHF"}, {"text": "🇨🇦 USD/CAD", "callback_data": "do_USD/CAD"}],
+                [{"text": "✍️ اكتب زوج يدوياً", "callback_data": "fx_custom"}]
+            ]}
+            send(cid, "💱 اختر زوج الفوركس:", markup)
+            
+        elif data == "fx_custom":
+            send(cid, "اكتب الزوج اللي عايزه في الشات مباشرة (مثلاً: NZD/USD أو EUR/GBP).")
+            
+        elif data.startswith("do_"):
+            pair = data.replace("do_", "")
+            send(cid, f"⏳ الخبير يبني استراتيجية فوركس لـ {pair}...")
+            send(cid, ask_ai(f"اعمل استراتيجية فوركس لزوج {pair} فقط.", mode="trade"))
 
 def main():
     offset = 0
     try:
         with open(OFFSET_FILE) as f: offset = int(f.read().strip())
     except: pass
-    print("🚀 Bot Started")
+    print("🚀 Forex Bot Started")
     start = time.time()
     while _running and (time.time() - start < RUN_DURATION):
         ups = get_updates(offset)
