@@ -13,12 +13,12 @@ def _stop(*_):
 signal.signal(signal.SIGTERM, _stop)
 signal.signal(signal.SIGINT, _stop)
 
+# برومبت مختصر وسريع
 PROMPT_TRADE = (
-    "أنت كبير استراتيجيي التداول في صندوق تحوط عالمي متخصص في الفوركس. "
-    "لديك خبرة 20 عاماً في أزواج العملات الرئيسية والجلسات (لندن، نيويورك، طوكيو). "
-    "اعمل استراتيجية مؤسسية دقيقة (دخول، خروج، إدارة مخاطر 1%، كود MT5) "
-    "للزوج المطلوب فقط. ممنوع تماماً تتكلم عن أي زوج آخر أو أي سوق آخر. "
-    "ركّز فقط على زوج الفوركس المطلوب."
+    "أنت كبير استراتيجيي التداول في صندوق تحوط عالمي. "
+    "اعمل استراتيجية مؤسسية دقيقة لزوج الفوركس المطلوب فقط. "
+    "وضح: المؤشرات، شروط الدخول (شراء/بيع)، إدارة المخاطر (Stop Loss و Take Profit). "
+    "ممنوع كتابة كود برمجي طويل عشان نوفر وقت الرد. ركز على القواعد فقط."
 )
 PROMPT_GEN = "أنت N-Panther مساعد ذكي عام. رد بالعربية بأسلوب مفيد ومباشر."
 
@@ -44,29 +44,35 @@ def ask_ai(text, mode="general"):
     if not GEMINI_KEY: return "⚠️ المفتاح مش موجود."
     sys_p = PROMPT_TRADE if mode == "trade" else PROMPT_GEN
     
-    models = ["gemini-2.0-flash", "gemini-flash-latest"] if mode == "trade" else ["gemini-flash-latest", "gemini-2.0-flash"]
+    # نستخدم flash فقط لأنه أسرع ومعدل الخطأ فيه أقل
+    models = ["gemini-flash-latest", "gemini-2.0-flash"]
     
     payload = {
         "system_instruction": {"parts": [{"text": sys_p}]},
-        "contents": [{"role": "user", "parts": [{"text": text[:4000]}]}],
-        "generationConfig": {"temperature": 0.4 if mode == "trade" else 0.7, "maxOutputTokens": 4096}
+        "contents": [{"role": "user", "parts": [{"text": text[:1000]}]}], # قص الرسايل الطويلة
+        "generationConfig": {"temperature": 0.5, "maxOutputTokens": 2048} # قللنا التوكينز
     }
-    last_err = "Unknown"
+    
     for m in models:
         try:
             req = urllib.request.Request(f"https://generativelanguage.googleapis.com/v1beta/models/{m}:generateContent", data=json.dumps(payload).encode(), headers={"Content-Type": "application/json", "X-Goog-Api-Key": GEMINI_KEY}, method="POST")
-            with urllib.request.urlopen(req, timeout=60) as resp:
+            # زودنا وقت الانتظار لـ 120 ثانية عشان ميقفلش
+            with urllib.request.urlopen(req, timeout=120) as resp:
                 d = json.loads(resp.read().decode())
                 if d.get("candidates"): return d["candidates"][0]["content"]["parts"][0]["text"]
         except urllib.error.HTTPError as e:
-            body = e.read().decode("utf-8", "replace")
-            last_err = f"Code {e.code}: {body[:150]}"
-            if e.code in (400, 403): return f"⚠️ مشكلة في المفتاح ({e.code})."
+            if e.code == 429:
+                return "⚠️ تم استهلاك الحد المجاني للذكاء الاصطناعي (429).\nاستنى دقيقة كاملة وجرب تاني."
+            if e.code in (400, 403): 
+                return "⚠️ مشكلة في المفتاح."
             continue
         except Exception as e:
-            last_err = str(e)
+            # لو حصل Timeout
+            if "timed out" in str(e).lower():
+                return "⚠️ الاتصال بالسيرفر أخد وقت طويل. جرب تاني بعد 30 ثانية."
             continue
-    return f"⚠️ فشل الاتصال بجوجل.\nالسبب: {last_err}"
+            
+    return "⚠️ فشل الاتصال بجوجل."
 
 def handle(u):
     if "message" in u:
@@ -106,13 +112,9 @@ def handle(u):
             markup = {"inline_keyboard": [
                 [{"text": "🇪🇺 EUR/USD", "callback_data": "do_EUR/USD"}, {"text": "🇬🇧 GBP/USD", "callback_data": "do_GBP/USD"}],
                 [{"text": "🇺🇸 USD/JPY", "callback_data": "do_USD/JPY"}, {"text": "🇦🇺 AUD/USD", "callback_data": "do_AUD/USD"}],
-                [{"text": "🇨🇭 USD/CHF", "callback_data": "do_USD/CHF"}, {"text": "🇨🇦 USD/CAD", "callback_data": "do_USD/CAD"}],
-                [{"text": "✍️ اكتب زوج يدوياً", "callback_data": "fx_custom"}]
+                [{"text": "🇨🇭 USD/CHF", "callback_data": "do_USD/CHF"}, {"text": "🇨🇦 USD/CAD", "callback_data": "do_USD/CAD"}]
             ]}
             send(cid, "💱 اختر زوج الفوركس:", markup)
-            
-        elif data == "fx_custom":
-            send(cid, "اكتب الزوج اللي عايزه في الشات مباشرة (مثلاً: NZD/USD أو EUR/GBP).")
             
         elif data.startswith("do_"):
             pair = data.replace("do_", "")
