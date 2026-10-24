@@ -87,7 +87,7 @@ def handle(u):
         txt = m.get("text", "").strip()
         if not cid or not txt: return
         
-        if txt == "/start" or txt == "/menu":
+        if txt.startswith("/start") or txt.startswith("/menu"):
             markup = {"inline_keyboard": [
                 [{"text": "🧠 ذكاء عام", "callback_data": "gen"}],
                 [{"text": "📈 استراتيجيات فوركس", "callback_data": "fx_menu"}]
