@@ -1,8 +1,5 @@
 name: Run Bot
-on:
-  workflow_dispatch:
-  schedule:
-    - cron: '0 */5 * * *'
+on: [push, workflow_dispatch]
 jobs:
   run-bot:
     runs-on: ubuntu-latest
@@ -10,10 +7,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-      - run: npm install
+        with: { node-version: '20' }
       - run: node bot.js
         env:
-          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
-          GEMINI_KEY: ${{ secrets.GEMINI_KEY }}
+          TELEGRAM_TOKEN: "8674718185:AAHFbjFh-6Y3NxtzTA6j8JOpKxEgWdMUTWA"
+          GEMINI_KEY: "AIzaSyAAtTJ_33sUBEF4VSkZL9R5F3DCsLNQm14"
